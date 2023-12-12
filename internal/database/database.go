@@ -58,5 +58,6 @@ func (s *service) Health() map[string]string {
 
 func (s *service) GetCollection(collectionName string) *mongo.Collection {
 	collection := s.db.Database(db_name).Collection(collectionName)
+
 	return collection
 }

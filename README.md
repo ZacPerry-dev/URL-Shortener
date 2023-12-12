@@ -19,3 +19,9 @@ Part 1
    - API should be idempotent (same endpoint for everything) (return if exists, otherwise add and create and return) 
    - IF invalid request, return an error HTTP status
    - Also check if there is an identical key in the DB whenever you generate a new hash
+
+
+
+
+Last
+- Clean up the database service code (remove the interface cause I honestly don't think I will need this )
