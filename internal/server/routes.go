@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -68,22 +69,55 @@ Going to store in DB like so..
 
 */
 
+type urlInfo struct {
+	FullURL  string `json:"fullUrl"`
+	ShortURL string `json:"shortUrl"`
+	URLCode  string `json:"urlCode"`
+}
+
+func (s *Server) checkURL(urlString string) bool {
+
+	parsedURL, err := url.Parse(urlString)
+	if err != nil || parsedURL == nil {
+		return false
+	}
+
+	if parsedURL.Host == "" || parsedURL.Scheme == "" {
+		return false
+	}
+
+	return true
+}
+
 func (s *Server) addURL(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		w.Header().Set("Content-Type", "application/json")
-		// Calls write header and write behind the scenes for you. Much easier to just use this I guess.
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	w.Write([]byte("Creating new url "))
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Invalid Content-Type", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var urlStuff urlInfo
+
+	err := json.NewDecoder(r.Body).Decode(&urlStuff)
+	if err != nil {
+		panic(err)
+	}
+
+	if s.checkURL(urlStuff.FullURL) == false {
+		http.Error(w, "Invalid URL", http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte(urlStuff.FullURL))
 }
 
 func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", http.MethodPost)
-		w.Header().Set("Content-Type", "application/json")
 		// Calls write header and write behind the scenes for you. Much easier to just use this I guess.
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
