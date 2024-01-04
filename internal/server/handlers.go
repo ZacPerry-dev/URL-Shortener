@@ -60,7 +60,7 @@ func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, errorString := s.checkURL(baseUrl.LongUrl)
+	status, errorString := checkURL(baseUrl.LongUrl)
 	if !status {
 		http.Error(w, errorString, http.StatusBadRequest)
 		return
@@ -91,11 +91,12 @@ func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(baseUrl.LongUrl))
 }
 
+// TODO: Need to figure out how I wanna structure this. Move some of the "getting" logic
+// from above to this function and return all info if it exists. If not, add and then return idk yet
 func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 }
 
-// MOVE TO UTILS LATER
-func (s *Server) checkURL(urlString string) (bool, string) {
+func checkURL(urlString string) (bool, string) {
 	parsedURL, err := url.Parse(urlString)
 
 	if err != nil || parsedURL == nil {
