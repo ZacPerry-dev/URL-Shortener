@@ -47,6 +47,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 
 	var baseUrl baseUrlInfo
 	var newUrl newUrlInfo
+	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
 
 	// MOVE TO UTILS LATER I GUESS
 	if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
@@ -65,17 +66,21 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if it exists
-	// Refactor
-	newUrl, status, err := s.FindURL(baseUrl)
+	// REFACTOR ALL THIS GROSS STUFF
+	newUrl, status, err := FindURL(baseUrl, urlCollection)
 	if status {
 		w.Write([]byte(newUrl.ShortUrl))
 		return
 	}
+
 	if err == mongo.ErrNoDocuments {
 		// post
 		w.Write([]byte("Does not exists. Creating in the DB"))
+		// Call hash function
+		// etc..
 		return
 	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -90,6 +95,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(baseUrl.LongUrl))
 }
 
+// I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO
 func ValidateURL(urlString string) (bool, string) {
 	parsedURL, err := url.Parse(urlString)
 
@@ -108,9 +114,8 @@ func ValidateURL(urlString string) (bool, string) {
 	return true, ""
 }
 
-func (s *Server) FindURL(baseUrl baseUrlInfo) (newUrlInfo, bool, error) {
+func FindURL(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (newUrlInfo, bool, error) {
 	var newUrl newUrlInfo
-	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
 
 	result := urlCollection.FindOne(context.Background(), bson.M{"LongUrl": baseUrl.LongUrl})
 
@@ -130,9 +135,13 @@ func (s *Server) FindURL(baseUrl baseUrlInfo) (newUrlInfo, bool, error) {
 }
 
 // hashing function
+// Sha256 to convert the long url to a hash string
+// Then, i want to generate a random index within the string and take a sequence of 6 chars
+// THis will then be the key to be used for the short url, alongside being the ID in the db
+func GenerateHashKey() {}
 
-// Check if hash exists function
-
-// Store and return to the user
+// Check the DB and see if the hash exists
+func FindHashKey() {}
 
 // Function for redirect
+func RedirectURL() {}
