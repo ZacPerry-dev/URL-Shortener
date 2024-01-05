@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
+
+	"URL-Shortener/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -35,7 +35,7 @@ Going to store in DB like so..
 
 */
 
-func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -47,11 +47,11 @@ func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var baseUrl baseUrlInfo
+	var newUrl newUrlInfo
 
-	// Decode, move to utils later
-	err := json.NewDecoder(r.Body).Decode(&baseUrl)
-	if err != nil {
-		http.Error(w, "Invalid JSON Payload", http.StatusBadRequest)
+	// MOVE TO UTILS LATER I GUESS
+	if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -60,25 +60,25 @@ func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, errorString := checkURL(baseUrl.LongUrl)
-	if !status {
+	if status, errorString := utils.ValidateURL(baseUrl.LongUrl); !status {
 		http.Error(w, errorString, http.StatusBadRequest)
 		return
 	}
 
-	// Check if it exists already
-	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
-	// var newUrl newUrlInfo
-
-	count, err := urlCollection.CountDocuments(context.Background(), bson.M{"LongUrl": baseUrl.LongUrl})
-	if err != nil {
-		http.Error(w, "Error with DB. Please try again later...", http.StatusInternalServerError)
+	// check if it exists
+	// Refactor
+	newUrl, status, err := s.FindURL(baseUrl)
+	if status {
+		w.Write([]byte(newUrl.ShortUrl))
 		return
 	}
-
-	// TODO: Abstract this to handle. If it already exists, then just call the get function and return I guess idk
-	if count != 0 {
-		fmt.Println("Url has already been converted... here -> ")
+	if err == mongo.ErrNoDocuments {
+		// post
+		w.Write([]byte("Does not exists. Creating in the DB"))
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -91,25 +91,31 @@ func (s *Server) postURL(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(baseUrl.LongUrl))
 }
 
-// TODO: Need to figure out how I wanna structure this. Move some of the "getting" logic
-// from above to this function and return all info if it exists. If not, add and then return idk yet
-func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) FindURL(baseUrl baseUrlInfo) (newUrlInfo, bool, error) {
+	var newUrl newUrlInfo
+	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
+
+	result := urlCollection.FindOne(context.Background(), bson.M{"LongUrl": baseUrl.LongUrl})
+
+	if err := result.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return newUrl, false, err
+		}
+
+		return newUrl, false, err
+	}
+
+	if err := result.Decode(&newUrl); err != nil {
+		return newUrl, false, err
+	}
+
+	return newUrl, true, nil
 }
 
-func checkURL(urlString string) (bool, string) {
-	parsedURL, err := url.Parse(urlString)
+// hashing function
 
-	if err != nil || parsedURL == nil {
-		return false, "Trouble Parsing URL"
-	}
+// Check if hash exists function
 
-	if parsedURL.Host == "" {
-		return false, "No Host"
-	}
+// Store and return to the user
 
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return false, "Invalid URL Scheme"
-	}
-
-	return true, ""
-}
+// Function for redirect
