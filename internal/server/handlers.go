@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-
-	"URL-Shortener/utils"
+	"net/url"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,7 +59,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if status, errorString := utils.ValidateURL(baseUrl.LongUrl); !status {
+	if status, errorString := ValidateURL(baseUrl.LongUrl); !status {
 		http.Error(w, errorString, http.StatusBadRequest)
 		return
 	}
@@ -89,6 +88,24 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	// Then, store and return the shortened URL to the user
 
 	w.Write([]byte(baseUrl.LongUrl))
+}
+
+func ValidateURL(urlString string) (bool, string) {
+	parsedURL, err := url.Parse(urlString)
+
+	if err != nil || parsedURL == nil {
+		return false, "Trouble Parsing URL"
+	}
+
+	if parsedURL.Host == "" {
+		return false, "No Host"
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return false, "Invalid URL Scheme"
+	}
+
+	return true, ""
 }
 
 func (s *Server) FindURL(baseUrl baseUrlInfo) (newUrlInfo, bool, error) {
