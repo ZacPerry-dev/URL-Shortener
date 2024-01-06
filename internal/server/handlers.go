@@ -15,10 +15,10 @@ import (
 )
 
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	// if r.Method != http.MethodPost {
+	// 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// 	return
+	// }
 
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Invalid Content-Type", http.StatusUnsupportedMediaType)
@@ -31,7 +31,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 
 	// MOVE TO UTILS LATER I GUESS
 	if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error Decoding JSON request body", http.StatusBadRequest)
 		return
 	}
 
@@ -49,23 +49,12 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	// REFACTOR ALL THIS GROSS STUFF
 	newUrl, status, err := FindURL(baseUrl, urlCollection)
 	if status {
-		// return info here
-		// return found in this case (302)
-		// Location Header
-		w.Write([]byte("ALREADY EXISTS IN THE DB\n"))
-		res, err := JsonMarshal(newUrl)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		CreateResponse(w, http.StatusFound, res)
 		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
 		return
 	}
 
 	if err != nil && err != mongo.ErrNoDocuments {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error with the DB. Please Try Again", http.StatusBadRequest)
 		return
 	}
 
@@ -83,21 +72,16 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := urlCollection.InsertOne(context.Background(), newUrl); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error saving in the DB. Please try again.", http.StatusBadRequest)
 	}
 
 	res, err := JsonMarshal(newUrl)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error marshaling JSON. Please try again.", http.StatusBadRequest)
 		return
 	}
 
 	CreateResponse(w, http.StatusCreated, res)
-}
-
-// Add this for the redirecting I suppose
-func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
-
 }
 
 // I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO

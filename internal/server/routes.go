@@ -11,7 +11,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("/", s.HelloWorldHandler)
 	mux.HandleFunc("/health", s.healthHandler)
 	mux.HandleFunc("/addURL", s.PostURL)
-	mux.HandleFunc("/getURL", s.GetURL)
 	return mux
 }
 
