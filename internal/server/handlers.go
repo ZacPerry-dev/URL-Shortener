@@ -14,6 +14,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+/*
+TODO
+
+Add delete endpoint to remove from the DB
+Fix up some of the functions (us encode rather than marshal or vice versa idk yet)
+Fix error checking
+Move to Utils
+
+*/
+
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
