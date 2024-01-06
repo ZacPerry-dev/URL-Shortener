@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -51,8 +50,17 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	newUrl, status, err := FindURL(baseUrl, urlCollection)
 	if status {
 		// return info here
-		w.Write([]byte("ALREADY EXISTS IN THE DB"))
-		w.Write([]byte(newUrl.ShortUrl))
+		// return found in this case (302)
+		// Location Header
+		w.Write([]byte("ALREADY EXISTS IN THE DB\n"))
+		res, err := JsonMarshal(newUrl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		CreateResponse(w, http.StatusFound, res)
+		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
 		return
 	}
 
@@ -63,11 +71,8 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 
 	var key string
 	if err == mongo.ErrNoDocuments {
-		// post
 		w.Write([]byte("Does not exists. Creating in the DB\n"))
 		key, _ = Hashing(baseUrl, urlCollection)
-		w.Write([]byte("Unique Key Generated: "))
-		w.Write([]byte(key))
 	}
 
 	// Then, store and return the shortened URL to the user
@@ -77,22 +82,22 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 		Key:      key,
 	}
 
-	// insert
-	result, err := urlCollection.InsertOne(context.Background(), newUrl)
+	if _, err := urlCollection.InsertOne(context.Background(), newUrl); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	res, err := JsonMarshal(newUrl)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println(result)
+	CreateResponse(w, http.StatusCreated, res)
+}
 
-	res, err := json.Marshal(newUrl)
-	if err != nil {
-		return
-	}
+// Add this for the redirecting I suppose
+func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(res)
 }
 
 // I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO
@@ -114,6 +119,7 @@ func ValidateURL(urlString string) (bool, string) {
 	return true, ""
 }
 
+// Refactor this
 func FindURL(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (newUrlInfo, bool, error) {
 	var newUrl newUrlInfo
 
@@ -159,7 +165,6 @@ func GenerateHashKey(baseUrl baseUrlInfo) (string, error) {
 	return hashKey, nil
 }
 
-// Check the DB and see if the hash exists
 func FindHashKey(hashKey string, urlCollection *mongo.Collection) (bool, error) {
 	result := urlCollection.FindOne(context.Background(), bson.M{"key": hashKey})
 
@@ -183,8 +188,17 @@ func CreateShortUrl(key string) string {
 	return shortKey
 }
 
-// Response Creation
-// Json stuff
+func JsonMarshal(newUrl newUrlInfo) ([]byte, error) {
+	res, err := json.Marshal(newUrl)
+	if err != nil {
+		return nil, err
+	}
 
-// Function for redirect
-func RedirectURL() {}
+	return res, nil
+}
+
+func CreateResponse(w http.ResponseWriter, httpStatus int, res []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(httpStatus)
+	w.Write(res)
+}
