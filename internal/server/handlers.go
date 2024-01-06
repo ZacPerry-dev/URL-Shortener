@@ -2,37 +2,18 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-/* TODO
-Need to add some new handlers
-Going to store in DB like so..
-
-{
-  "_id": ObjectId("unique_id"),
-  "smallKey": "value1",
-  "longKey": "value2"
-}
-
-1. Create a short URL
-- Error check the passed URL
-- First, check if the short URL key already exists
-  - If so, handle accordingly
-- Otherwise, call util hash function
-- Determine if this hash key is in the DB. If so, regenerate (another function)
-- Create new short URL
-- Piece it together and store within the DB (mapping the short to real url)
-
-2. Handler to check if it exists already
-- call db and check if the fullform URL is already stored.
-
-*/
 
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -69,30 +50,49 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	// REFACTOR ALL THIS GROSS STUFF
 	newUrl, status, err := FindURL(baseUrl, urlCollection)
 	if status {
+		// return info here
+		w.Write([]byte("ALREADY EXISTS IN THE DB"))
 		w.Write([]byte(newUrl.ShortUrl))
 		return
 	}
 
-	if err == mongo.ErrNoDocuments {
-		// post
-		w.Write([]byte("Does not exists. Creating in the DB"))
-		// Call hash function
-		// etc..
-		return
-	}
-
-	if err != nil {
+	if err != nil && err != mongo.ErrNoDocuments {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// If not, do the hashing stuff
-
-	// If hash already exists, redo the hashing and continue until it gets a unique one
+	var key string
+	if err == mongo.ErrNoDocuments {
+		// post
+		w.Write([]byte("Does not exists. Creating in the DB\n"))
+		key, _ = Hashing(baseUrl, urlCollection)
+		w.Write([]byte("Unique Key Generated: "))
+		w.Write([]byte(key))
+	}
 
 	// Then, store and return the shortened URL to the user
+	newUrl = newUrlInfo{
+		LongUrl:  baseUrl.LongUrl,
+		ShortUrl: CreateShortUrl(key),
+		Key:      key,
+	}
 
-	w.Write([]byte(baseUrl.LongUrl))
+	// insert
+	result, err := urlCollection.InsertOne(context.Background(), newUrl)
+	if err != nil {
+		return
+	}
+
+	fmt.Println(result)
+
+	res, err := json.Marshal(newUrl)
+	if err != nil {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(res)
 }
 
 // I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO
@@ -117,7 +117,7 @@ func ValidateURL(urlString string) (bool, string) {
 func FindURL(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (newUrlInfo, bool, error) {
 	var newUrl newUrlInfo
 
-	result := urlCollection.FindOne(context.Background(), bson.M{"LongUrl": baseUrl.LongUrl})
+	result := urlCollection.FindOne(context.Background(), bson.M{"longurl": baseUrl.LongUrl})
 
 	if err := result.Err(); err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -134,14 +134,57 @@ func FindURL(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (newUrlInfo, 
 	return newUrl, true, nil
 }
 
-// hashing function
-// Sha256 to convert the long url to a hash string
-// Then, i want to generate a random index within the string and take a sequence of 6 chars
-// THis will then be the key to be used for the short url, alongside being the ID in the db
-func GenerateHashKey() {}
+func Hashing(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (string, error) {
+	var key string
+
+	for {
+		key, _ = GenerateHashKey(baseUrl)
+		result, _ := FindHashKey(key, urlCollection)
+		if !result {
+			break
+		}
+	}
+
+	return key, nil
+}
+
+func GenerateHashKey(baseUrl baseUrlInfo) (string, error) {
+	hash := sha256.Sum256([]byte(baseUrl.LongUrl))
+	hashString := hex.EncodeToString(hash[:])
+
+	start := rand.Intn(len(hashString) - 6)
+
+	hashKey := hashString[start : start+6]
+
+	return hashKey, nil
+}
 
 // Check the DB and see if the hash exists
-func FindHashKey() {}
+func FindHashKey(hashKey string, urlCollection *mongo.Collection) (bool, error) {
+	result := urlCollection.FindOne(context.Background(), bson.M{"key": hashKey})
+
+	if err := result.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+func CreateShortUrl(key string) string {
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	shortKey := "http://" + host + "/" + key
+
+	return shortKey
+}
+
+// Response Creation
+// Json stuff
 
 // Function for redirect
 func RedirectURL() {}
