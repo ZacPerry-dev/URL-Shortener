@@ -8,23 +8,11 @@ import (
 
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.HelloWorldHandler)
+	mux.HandleFunc("/", s.RedirectURL)
 	mux.HandleFunc("/health", s.healthHandler)
 	mux.HandleFunc("/addURL", s.PostURL)
+	mux.HandleFunc("/removeURL", s.DeleteURL)
 	return mux
-}
-
-// Change to a basic UI page
-func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
-	resp := make(map[string]string)
-	resp["message"] = "Hello World"
-
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		log.Fatalf("error handling JSON marshal. Err: %v", err)
-	}
-
-	_, _ = w.Write(jsonResp)
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
