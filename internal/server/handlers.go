@@ -18,10 +18,10 @@ import (
 /*
 
 TODO:
-Container
+UI stuff with HTMX and templates
 Tests
+Container
 Error checking (return JSON for testing purposes)
-Util cleanup
 */
 
 func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
