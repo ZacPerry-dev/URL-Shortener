@@ -1,0 +1,55 @@
+{
+	"info": {
+		"_postman_id": "688f0447-77c9-42b6-86f0-b154d66fef5b",
+		"name": "url-shortener",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "27786451"
+	},
+	"item": [
+		{
+			"name": "addURL",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Url\": \"http://example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:8000/addURL"
+			},
+			"response": []
+		},
+		{
+			"name": "getURL",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "http://localhost:8000/852c2d"
+			},
+			"response": []
+		},
+		{
+			"name": "deleteURL",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Url\": \"http://localhost/852c2d\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:8000/deleteURL"
+			},
+			"response": []
+		}
+	]
+}
