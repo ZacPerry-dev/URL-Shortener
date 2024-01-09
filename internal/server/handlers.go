@@ -16,18 +16,54 @@ import (
 )
 
 /*
-TODO
 
-Part 3
-Delete
-
-Last
+TODO:
 Container
 Tests
 Error checking (return JSON for testing purposes)
 Util cleanup
-
 */
+
+func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Path[1:]
+
+	if key == "" {
+		fmt.Fprint(w, "No key provided")
+		return
+	}
+
+	if len(key) != 6 {
+		fmt.Fprint(w, "Invalid key provided")
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		CreateErrorResponse(w, http.MethodGet, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var newUrl newUrlInfo
+	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
+
+	newUrl, status, err := FindURL("key", key, urlCollection)
+
+	if status {
+		w.Header().Set("Location", newUrl.LongUrl)
+		CreateResponse(w, http.StatusFound, []byte(newUrl.LongUrl))
+
+		// I don't think I techinally need this. If you curl with -L, it will follow the redirect
+		// But, when using postman it does it anyway. Will keep for now though
+		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
+		return
+	}
+
+	if err != nil && err != mongo.ErrNoDocuments {
+		CreateErrorResponse(w, http.MethodGet, "Error with the DB. Please Try Again", http.StatusBadRequest)
+		return
+	}
+
+	CreateErrorResponse(w, http.MethodGet, "Key not found", http.StatusNotFound)
+}
 
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -78,6 +114,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var key string
+
 	if err == mongo.ErrNoDocuments {
 		key, _ = Hashing(baseUrl, urlCollection)
 	}
@@ -103,51 +140,55 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	CreateResponse(w, http.StatusCreated, res)
 }
 
-func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Path[1:]
-
-	if key == "" {
-		fmt.Fprint(w, "No key provided")
+func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		CreateErrorResponse(w, http.MethodDelete, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	if r.Method != http.MethodGet {
-		CreateErrorResponse(w, http.MethodGet, "Method not allowed", http.StatusMethodNotAllowed)
+	if r.Header.Get("Content-Type") != "application/json" {
+		CreateErrorResponse(w, http.MethodDelete, "Invalid Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
 
+	var baseUrl baseUrlInfo
 	var newUrl newUrlInfo
 	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
 
-	newUrl, status, err := FindURL("key", key, urlCollection)
-
-	if status {
-		w.Header().Set("Location", newUrl.LongUrl)
-		CreateResponse(w, http.StatusFound, []byte(newUrl.LongUrl))
-
-		// I don't think I techinally need this. If you curl with -L, it will follow the redirect
-		// But, when using postman it does it anyway. Will keep for now though
-		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
+	if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
+		CreateErrorResponse(w, http.MethodDelete, "Error Decoding JSON request body", http.StatusBadRequest)
 		return
 	}
-	if err != nil {
+
+	if baseUrl.Url == "" {
+		CreateErrorResponse(w, http.MethodDelete, "Missing field: Url", http.StatusBadRequest)
+		return
+	}
+
+	if status, errorString := ValidateURL(baseUrl.Url); !status {
+		CreateErrorResponse(w, http.MethodDelete, errorString, http.StatusBadRequest)
+		return
+	}
+
+	newUrl, status, err := FindURL("shorturl", baseUrl.Url, urlCollection)
+
+	// If found, delete
+	if status {
+		_, err := urlCollection.DeleteOne(context.Background(), bson.M{"key": newUrl.Key})
+		if err != nil {
+			CreateErrorResponse(w, http.MethodDelete, "Error with the DB. Please Try Again", http.StatusBadRequest)
+			return
+		}
+		CreateResponse(w, http.StatusOK, []byte("Deleted"))
+		return
+	}
+
+	if err != nil && err != mongo.ErrNoDocuments {
 		CreateErrorResponse(w, http.MethodGet, "Error with the DB. Please Try Again", http.StatusBadRequest)
 		return
 	}
 
-	if err == mongo.ErrNoDocuments {
-		CreateErrorResponse(w, http.MethodGet, "Key not found", http.StatusNotFound)
-		return
-	}
-
-	// If no key is provided, maybe just redirect to the home handler and load the ui?
-}
-
-func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
-	// Decode the url passed
-	// Then, check the DB for it
-	// If it exists, delete it
-	// Otherwise, return a 404 Not found
+	CreateErrorResponse(w, http.MethodGet, "Key not found", http.StatusNotFound)
 }
 
 // I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS
