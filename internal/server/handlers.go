@@ -122,6 +122,11 @@ func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
 	newUrl, status, err := FindURL("key", key, urlCollection)
 
 	if status {
+		w.Header().Set("Location", newUrl.LongUrl)
+		CreateResponse(w, http.StatusFound, []byte(newUrl.LongUrl))
+
+		// I don't think I techinally need this. If you curl with -L, it will follow the redirect
+		// But, when using postman it does it anyway. Will keep for now though
 		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
 		return
 	}
@@ -145,7 +150,7 @@ func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
 	// Otherwise, return a 404 Not found
 }
 
-// I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO
+// I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS
 func ValidateURL(urlString string) (bool, string) {
 	parsedURL, err := url.Parse(urlString)
 
