@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -17,21 +18,28 @@ import (
 /*
 TODO
 
-Add delete endpoint to remove from the DB
-Fix up some of the functions (us encode rather than marshal or vice versa idk yet)
-Fix error checking
-Move to Utils
+Part 2
+Redirecting
+
+Part 3
+Delete
+
+Last
+Container
+Tests
+Error checking (return JSON for testing purposes)
+Util cleanup
 
 */
 
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		CreateErrorResponse(w, http.MethodPost, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Invalid Content-Type", http.StatusUnsupportedMediaType)
+		CreateErrorResponse(w, http.MethodPost, "Invalid Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -39,59 +47,83 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	var newUrl newUrlInfo
 	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
 
-	// MOVE TO UTILS LATER I GUESS
 	if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
-		http.Error(w, "Error Decoding JSON request body", http.StatusBadRequest)
+		CreateErrorResponse(w, http.MethodPost, "Error Decoding JSON request body", http.StatusBadRequest)
 		return
 	}
 
-	if baseUrl.LongUrl == "" {
-		http.Error(w, "Missing field: URL", http.StatusBadRequest)
+	if baseUrl.Url == "" {
+		CreateErrorResponse(w, http.MethodPost, "Missing field: Url", http.StatusBadRequest)
 		return
 	}
 
-	if status, errorString := ValidateURL(baseUrl.LongUrl); !status {
-		http.Error(w, errorString, http.StatusBadRequest)
+	if status, errorString := ValidateURL(baseUrl.Url); !status {
+		CreateErrorResponse(w, http.MethodPost, errorString, http.StatusBadRequest)
 		return
 	}
 
-	// check if it exists
-	// REFACTOR ALL THIS GROSS STUFF
-	newUrl, status, err := FindURL(baseUrl, urlCollection)
+	// First, check if the URL already exists in the DB
+	newUrl, status, err := FindURL("longurl", baseUrl.Url, urlCollection)
 	if status {
-		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
+		res, err := JsonMarshal(newUrl)
+		if err != nil {
+			CreateErrorResponse(w, http.MethodPost, "Error marshaling JSON. Please try again.", http.StatusBadRequest)
+			return
+		}
+
+		CreateResponse(w, http.StatusFound, res)
 		return
 	}
 
 	if err != nil && err != mongo.ErrNoDocuments {
-		http.Error(w, "Error with the DB. Please Try Again", http.StatusBadRequest)
+		CreateErrorResponse(w, http.MethodPost, "Error with the DB. Please Try Again", http.StatusBadRequest)
 		return
 	}
 
 	var key string
 	if err == mongo.ErrNoDocuments {
-		w.Write([]byte("Does not exists. Creating in the DB\n"))
 		key, _ = Hashing(baseUrl, urlCollection)
 	}
 
 	// Then, store and return the shortened URL to the user
 	newUrl = newUrlInfo{
-		LongUrl:  baseUrl.LongUrl,
+		LongUrl:  baseUrl.Url,
 		ShortUrl: CreateShortUrl(key),
 		Key:      key,
 	}
 
 	if _, err := urlCollection.InsertOne(context.Background(), newUrl); err != nil {
-		http.Error(w, "Error saving in the DB. Please try again.", http.StatusBadRequest)
+		CreateErrorResponse(w, http.MethodPost, "Error saving in the DB. Please try again.", http.StatusBadRequest)
+		return
 	}
 
 	res, err := JsonMarshal(newUrl)
 	if err != nil {
-		http.Error(w, "Error marshaling JSON. Please try again.", http.StatusBadRequest)
+		CreateErrorResponse(w, http.MethodPost, "Error marshaling JSON. Please try again.", http.StatusBadRequest)
 		return
 	}
 
 	CreateResponse(w, http.StatusCreated, res)
+}
+
+func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
+	// Decode the url passed
+	// Then, check the DB for it
+	// If it exists, redirect to the long URL
+	// Otherwise, return a 404 Not found
+	key := r.URL.Path[1:]
+	if key == "" {
+		fmt.Fprint(w, "No key provided")
+		return
+	}
+
+}
+
+func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
+	// Decode the url passed
+	// Then, check the DB for it
+	// If it exists, delete it
+	// Otherwise, return a 404 Not found
 }
 
 // I CANT DECIDE BUT MAYBE MOVE THESE TO UTILS TOO
@@ -113,11 +145,10 @@ func ValidateURL(urlString string) (bool, string) {
 	return true, ""
 }
 
-// Refactor this
-func FindURL(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (newUrlInfo, bool, error) {
+func FindURL(findVal string, urlVal string, urlCollection *mongo.Collection) (newUrlInfo, bool, error) {
 	var newUrl newUrlInfo
 
-	result := urlCollection.FindOne(context.Background(), bson.M{"longurl": baseUrl.LongUrl})
+	result := urlCollection.FindOne(context.Background(), bson.M{findVal: urlVal})
 
 	if err := result.Err(); err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -149,7 +180,7 @@ func Hashing(baseUrl baseUrlInfo, urlCollection *mongo.Collection) (string, erro
 }
 
 func GenerateHashKey(baseUrl baseUrlInfo) (string, error) {
-	hash := sha256.Sum256([]byte(baseUrl.LongUrl))
+	hash := sha256.Sum256([]byte(baseUrl.Url))
 	hashString := hex.EncodeToString(hash[:])
 
 	start := rand.Intn(len(hashString) - 6)
@@ -182,7 +213,10 @@ func CreateShortUrl(key string) string {
 	return shortKey
 }
 
-func JsonMarshal(newUrl newUrlInfo) ([]byte, error) {
+// Pass an interface arg. Allows you to pass whatever you want to it
+// This is kinda dumb in terms of robustness and error checking.
+// Did this so i could pass either a string (newUrl.shortURL) or an entire struct to it (newUrl)
+func JsonMarshal(newUrl interface{}) ([]byte, error) {
 	res, err := json.Marshal(newUrl)
 	if err != nil {
 		return nil, err
@@ -195,4 +229,10 @@ func CreateResponse(w http.ResponseWriter, httpStatus int, res []byte) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
 	w.Write(res)
+}
+
+func CreateErrorResponse(w http.ResponseWriter, httpMethod string, errorString string, httpStatus int) {
+	w.Header().Set("Allow", httpMethod)
+	w.Header().Set("Content-Type", "application/json")
+	http.Error(w, errorString, httpStatus)
 }

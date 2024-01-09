@@ -1,7 +1,7 @@
 package server
 
 type baseUrlInfo struct {
-	LongUrl string `json:"LongUrl"`
+	Url string `json:"Url"`
 }
 
 type newUrlInfo struct {
