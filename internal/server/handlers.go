@@ -18,9 +18,6 @@ import (
 /*
 TODO
 
-Part 2
-Redirecting
-
 Part 3
 Delete
 
@@ -107,16 +104,38 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
-	// Decode the url passed
-	// Then, check the DB for it
-	// If it exists, redirect to the long URL
-	// Otherwise, return a 404 Not found
 	key := r.URL.Path[1:]
+
 	if key == "" {
 		fmt.Fprint(w, "No key provided")
 		return
 	}
 
+	if r.Method != http.MethodGet {
+		CreateErrorResponse(w, http.MethodGet, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var newUrl newUrlInfo
+	var urlCollection *mongo.Collection = s.db.GetCollection("url-mappings")
+
+	newUrl, status, err := FindURL("key", key, urlCollection)
+
+	if status {
+		http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
+		return
+	}
+	if err != nil {
+		CreateErrorResponse(w, http.MethodGet, "Error with the DB. Please Try Again", http.StatusBadRequest)
+		return
+	}
+
+	if err == mongo.ErrNoDocuments {
+		CreateErrorResponse(w, http.MethodGet, "Key not found", http.StatusNotFound)
+		return
+	}
+
+	// If no key is provided, maybe just redirect to the home handler and load the ui?
 }
 
 func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
