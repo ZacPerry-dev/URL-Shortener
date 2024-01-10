@@ -13,15 +13,6 @@ import (
 	"URL-Shortener/utils"
 )
 
-/*
-
-TODO:
-UI stuff with HTMX and templates
-Tests
-Container
-Error checking (return JSON for testing purposes)
-*/
-
 func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
 
