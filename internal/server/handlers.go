@@ -13,7 +13,7 @@ import (
 	"URL-Shortener/utils"
 )
 
-func (s *Server) RedirectURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
 
 	if key == "" {
