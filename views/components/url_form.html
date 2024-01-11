@@ -4,14 +4,25 @@
     <div class="col-md-6">
       <form hx-post="/addURL" hx-trigger="submit" hx-target="#output" hx-ext="json-enc">
         <div class="mb-3">
-          <label for="exampleInputEmail1" class="form-label">Enter a URL</label>
-          <input name="url" type="url" class="form-control" id="exampleInputEmail1">
+          <label for="urlEntry" class="form-label">Enter a URL</label>
+          <input name="url" type="url" class="form-control" id="urlEntry">
         </div>
+
         <div class="mb-3" id="output">
-          <!-- Have this be the output. If submitted and successful, then display the shortened URL hyperlink. -->
         </div>
-        <button type="submit" class="btn btn-primary">Submit</button>
+
+        <button type="submit" class="btn btn-primary">Shorten!</button>
       </form>
+      <!-- need a form to do the hx-delete -->
+      <form hx-delete="/deleteURL" hx-trigger="click" hx-confirm="Are you sure you want to delete this entry?" hx-ext="json-enc" hx-target="#output">
+        <div class="mb-3">
+          <!-- Wanna set the input here equal to something in the output div -->
+          <label for="urlDelete" class="form-label">Enter a URL</label>
+          <input name="url" type="url" class="form-control" id="urlDelete">
+        </div>
+        <button type="button" class="btn btn-danger" hx-trigger="click">Delete Entry</button>
+      </form>
+
     </div>
   </div>
 </div>

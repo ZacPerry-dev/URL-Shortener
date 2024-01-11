@@ -132,6 +132,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != http.MethodDelete {
 		utils.CreateErrorResponse(w, http.MethodDelete, "Method not allowed", http.StatusMethodNotAllowed)
 		return
