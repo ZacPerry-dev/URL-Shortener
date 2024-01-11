@@ -94,10 +94,12 @@ func FindHashKey(hashKey string, urlCollection *mongo.Collection) (bool, error) 
 
 func CreateShortUrl(key string) string {
 	host := os.Getenv("DB_HOST")
+	port := os.Getenv("PORT")
+
 	if host == "" {
 		host = "localhost"
 	}
-	shortKey := "http://" + host + "/" + key
+	shortKey := "http://" + host + ":" + port + "/" + key
 
 	return shortKey
 }
