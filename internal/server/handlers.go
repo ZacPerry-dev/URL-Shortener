@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,12 +16,12 @@ func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
 
 	if key == "" {
-		fmt.Fprint(w, "No key provided")
+		http.Redirect(w, r, "/home", http.StatusNoContent)
 		return
 	}
 
 	if len(key) != 6 {
-		fmt.Fprint(w, "Invalid key provided")
+		http.Redirect(w, r, "/home", http.StatusBadRequest)
 		return
 	}
 
@@ -55,6 +54,7 @@ func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != http.MethodPost {
 		utils.CreateErrorResponse(w, http.MethodPost, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -94,6 +94,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 		}
 
 		utils.CreateResponse(w, http.StatusFound, res)
+		w.Write([]byte("\n<a href='" + newUrl.ShortUrl + "'>" + newUrl.ShortUrl + "</a>\n"))
 		return
 	}
 
@@ -127,6 +128,7 @@ func (s *Server) PostURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.CreateResponse(w, http.StatusCreated, res)
+	w.Write([]byte("\n<a href='" + newUrl.ShortUrl + "'>" + newUrl.ShortUrl + "</a>\n"))
 }
 
 func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
@@ -178,4 +180,8 @@ func (s *Server) DeleteURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.CreateErrorResponse(w, http.MethodGet, "Key not found", http.StatusNotFound)
+}
+
+func (s *Server) Home(w http.ResponseWriter, r *http.Request) {
+	s.templates.ExecuteTemplate(w, "index", nil)
 }
