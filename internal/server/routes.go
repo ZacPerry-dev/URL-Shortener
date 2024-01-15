@@ -11,5 +11,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("/", s.GetURL)
 	mux.HandleFunc("/addURL", s.PostURL)
 	mux.HandleFunc("/deleteURL", s.DeleteURL)
+
+	fileServer := http.FileServer(http.Dir("./views/static/"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
 	return mux
 }
