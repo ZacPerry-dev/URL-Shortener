@@ -4,16 +4,13 @@ import (
 	"net/http"
 )
 
-func (s *Server) RegisterRoutes() http.Handler {
-	mux := http.NewServeMux()
+func (s *Server) RegisterRoutes() {
 
-	mux.HandleFunc("/home", s.Home)
-	mux.HandleFunc("/", s.GetURL)
-	mux.HandleFunc("/addURL", s.PostURL)
-	mux.HandleFunc("/deleteURL", s.DeleteURL)
+	s.mux.HandleFunc("/home", s.Home)
+	s.mux.HandleFunc("/", s.GetURL)
+	s.mux.HandleFunc("/addURL", s.PostURL)
+	s.mux.HandleFunc("/deleteURL", s.DeleteURL)
 
 	fileServer := http.FileServer(http.Dir("./views/static/"))
-	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
-
-	return mux
+	s.mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 }

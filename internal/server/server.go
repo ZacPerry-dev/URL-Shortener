@@ -18,9 +18,10 @@ type Server struct {
 	port      int
 	db        database.Service
 	templates *template.Template
+	mux       *http.ServeMux
 }
 
-func NewServer() *http.Server {
+func NewServer() *Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 
 	files := []string{
@@ -32,12 +33,20 @@ func NewServer() *http.Server {
 		port:      port,
 		db:        database.New(),
 		templates: utils.ParseTemplates(files...),
+		mux:       http.NewServeMux(),
 	}
 
-	// Declare Server config
+	NewServer.RegisterRoutes()
+
+	return NewServer
+}
+
+func (s *Server) CreateHttpServer() *http.Server {
+	addr := fmt.Sprintf(":%d", s.port)
+
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
-		Handler:      NewServer.RegisterRoutes(),
+		Addr:         addr,
+		Handler:      s.mux,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

@@ -3,10 +3,12 @@ package main
 import "URL-Shortener/internal/server"
 
 func main() {
-	server := server.NewServer()
+	s := server.NewServer()
 
-	err := server.ListenAndServe()
+	httpServe := s.CreateHttpServer()
+
+	err := httpServe.ListenAndServe()
 	if err != nil {
-		panic("cannot start server")
+		panic(err)
 	}
 }
