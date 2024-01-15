@@ -25,7 +25,6 @@ func NewServer() *http.Server {
 
 	files := []string{
 		"./views/index.html",
-		"./views/components/delete_button.html",
 		"./views/components/url_form.html",
 	}
 
