@@ -21,17 +21,17 @@ type Server struct {
 	mux       *http.ServeMux
 }
 
-func NewServer() *Server {
+func NewServer(db database.Service, viewsPath string) *Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 
 	files := []string{
-		"./views/index.html",
-		"./views/components/url_form.html",
+		fmt.Sprintf("%s/index.html", viewsPath),
+		fmt.Sprintf("%s/components/url_form.html", viewsPath),
 	}
 
 	NewServer := &Server{
 		port:      port,
-		db:        database.New(),
+		db:        db,
 		templates: utils.ParseTemplates(files...),
 		mux:       http.NewServeMux(),
 	}
@@ -53,4 +53,8 @@ func (s *Server) CreateHttpServer() *http.Server {
 	}
 
 	return server
+}
+
+func (s *Server) DB() database.Service {
+	return s.db
 }

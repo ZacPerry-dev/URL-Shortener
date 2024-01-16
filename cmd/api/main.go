@@ -1,9 +1,13 @@
 package main
 
-import "URL-Shortener/internal/server"
+import (
+	"URL-Shortener/internal/database"
+	"URL-Shortener/internal/server"
+)
 
 func main() {
-	s := server.NewServer()
+	db := database.New()
+	s := server.NewServer(db, "./views")
 
 	httpServe := s.CreateHttpServer()
 
