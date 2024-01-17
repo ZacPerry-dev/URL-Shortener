@@ -14,6 +14,12 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+type ServerInterface interface {
+	RegisterRoutes()
+	CreateHttpServer() *http.Server
+	GetDB() database.Service
+}
+
 type Server struct {
 	port      int
 	db        database.Service
@@ -21,7 +27,7 @@ type Server struct {
 	mux       *http.ServeMux
 }
 
-func NewServer(db database.Service, viewsPath string) *Server {
+func NewServer(db database.Service, viewsPath string) ServerInterface {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 
 	files := []string{
@@ -55,6 +61,6 @@ func (s *Server) CreateHttpServer() *http.Server {
 	return server
 }
 
-func (s *Server) DB() database.Service {
+func (s *Server) GetDB() database.Service {
 	return s.db
 }
