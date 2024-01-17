@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,7 +12,6 @@ import (
 )
 
 type Service interface {
-	Health() map[string]string
 	GetCollection(string) *mongo.Collection
 }
 
@@ -42,21 +40,8 @@ func New() Service {
 	}
 }
 
-func (s *service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	err := s.db.Ping(ctx, nil)
-	if err != nil {
-		log.Fatalf(fmt.Sprintf("db down: %v", err))
-	}
-
-	return map[string]string{
-		"message": "It's healthy",
-	}
-}
-
 func (s *service) GetCollection(collectionName string) *mongo.Collection {
 	collection := s.db.Database(db_name).Collection(collectionName)
+
 	return collection
 }
