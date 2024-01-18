@@ -13,21 +13,22 @@ import (
 
 type Service interface {
 	GetCollection(string) *mongo.Collection
+	CloseConnection()
 }
 
 type service struct {
 	db *mongo.Client
 }
 
-var (
-	// host     = os.Getenv("DB_HOST")
-	// port     = os.Getenv("DB_PORT")
-	database = os.Getenv("DB_URI")
-	db_name  = os.Getenv("DB_NAME")
-)
+// var (
+// 	// host     = os.Getenv("DB_HOST")
+// 	// port     = os.Getenv("DB_PORT")
+// 	database = os.Getenv("DB_URI")
+// 	db_name  = os.Getenv("DB_NAME")
+// )
 
 func New() Service {
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(database))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(os.Getenv("DB_URI")))
 
 	if err != nil {
 		log.Fatal(err)
@@ -41,7 +42,20 @@ func New() Service {
 }
 
 func (s *service) GetCollection(collectionName string) *mongo.Collection {
-	collection := s.db.Database(db_name).Collection(collectionName)
+	collection := s.db.Database(os.Getenv("DB_NAME")).Collection(collectionName)
 
 	return collection
+}
+
+func (s *service) CloseConnection() {
+	if s.db == nil {
+		return
+	}
+
+	err := s.db.Disconnect(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Connection to DB closed")
 }

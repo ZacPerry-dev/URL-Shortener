@@ -7,8 +7,9 @@ import (
 
 func main() {
 	db := database.New()
-	s := server.NewServer(db, "./views")
+	defer db.CloseConnection()
 
+	s := server.NewServer(db, "./views")
 	httpServe := s.CreateHttpServer()
 
 	err := httpServe.ListenAndServe()

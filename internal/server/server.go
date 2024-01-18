@@ -18,6 +18,10 @@ type ServerInterface interface {
 	RegisterRoutes()
 	CreateHttpServer() *http.Server
 	GetDB() database.Service
+	PostURL(w http.ResponseWriter, r *http.Request)
+	GetURL(w http.ResponseWriter, r *http.Request)
+	DeleteURL(w http.ResponseWriter, r *http.Request)
+	Home(w http.ResponseWriter, r *http.Request)
 }
 
 type Server struct {
