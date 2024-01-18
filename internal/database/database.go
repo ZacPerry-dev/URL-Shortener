@@ -20,13 +20,6 @@ type service struct {
 	db *mongo.Client
 }
 
-// var (
-// 	// host     = os.Getenv("DB_HOST")
-// 	// port     = os.Getenv("DB_PORT")
-// 	database = os.Getenv("DB_URI")
-// 	db_name  = os.Getenv("DB_NAME")
-// )
-
 func New() Service {
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(os.Getenv("DB_URI")))
 

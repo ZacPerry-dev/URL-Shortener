@@ -46,6 +46,7 @@ func CleanDB(t *testing.T, db database.Service) {
 	urlCollection := db.GetCollection("url-mappings")
 
 	// Also an error here. Not sure why yet.
+	// Will need to delete the http://example.com as well as that is what I am inserting for this test
 	_, err := urlCollection.DeleteMany(context.TODO(), bson.M{
 		"key": bson.M{
 			"$in": []string{"test1", "test2"},
