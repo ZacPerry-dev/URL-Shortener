@@ -23,6 +23,9 @@ import (
 // Error if passed an invalid URL (400)
 // Error if passed no url (Missing field, 400)
 
+// Will need to adjust this for this test.
+// Just need to insert test data to test the 201 response
+// 302 will need to be actually created in the DB
 func InsertTestDataDB(t *testing.T, db database.Service) {
 	urlCollection := db.GetCollection("url-mappings")
 
@@ -37,9 +40,12 @@ func InsertTestDataDB(t *testing.T, db database.Service) {
 	}
 }
 
+// For the test, I need to clean the DB after each test
+// In this case, get rid of anything that was created for the 302 test or the 201
 func CleanDB(t *testing.T, db database.Service) {
 	urlCollection := db.GetCollection("url-mappings")
 
+	// Also an error here. Not sure why yet.
 	_, err := urlCollection.DeleteMany(context.TODO(), bson.M{
 		"key": bson.M{
 			"$in": []string{"test1", "test2"},
@@ -104,8 +110,12 @@ func TestPostURL(t *testing.T) {
 
 	fmt.Println(res.Body.String())
 
+	// ERROR HERE:
+	// Basically, it can't unmarshal becasue I am also returning a link in the response body (a tag)
+	// This is done for the template so that it actually renders something. May need to refactor
 	err = json.Unmarshal(res.Body.Bytes(), &response)
 	if err != nil {
+		CleanDB(t, db)
 		t.Fatal(err)
 	}
 
