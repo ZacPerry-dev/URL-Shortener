@@ -4,7 +4,7 @@ A URL shortening service written in Go. This project was inspired by this [codin
 ## TODO:
 - [x] Add the UI using Templates, HTMX, & CSS
    - [x] Will need to add additional handlers for this
+- [] Refactor (make it more readable and modular) 
 - [] Add tests
-- [] Add better error checking
 - [] Contanerize
 - [] Finish readme
