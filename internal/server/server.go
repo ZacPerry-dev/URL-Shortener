@@ -1,70 +1,69 @@
 package server
 
 import (
+	"URL-Shortener/internal/database"
+	"URL-Shortener/internal/routes"
+	"context"
 	"fmt"
-	"html/template"
+	"io"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
-
-	"URL-Shortener/internal/database"
-	"URL-Shortener/utils"
-
-	_ "github.com/joho/godotenv/autoload"
+	"os/signal"
 )
 
-type ServerInterface interface {
-	RegisterRoutes()
-	CreateHttpServer() *http.Server
-	GetDB() database.Service
-	PostURL(w http.ResponseWriter, r *http.Request)
-	GetURL(w http.ResponseWriter, r *http.Request)
-	DeleteURL(w http.ResponseWriter, r *http.Request)
-	Home(w http.ResponseWriter, r *http.Request)
-}
-
 type Server struct {
-	port      int
-	db        database.Service
-	templates *template.Template
-	mux       *http.ServeMux
+	router *http.ServeMux
+	db     *database.Database
 }
 
-func NewServer(db database.Service, viewsPath string) ServerInterface {
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
-
-	files := []string{
-		fmt.Sprintf("%s/index.html", viewsPath),
-		fmt.Sprintf("%s/components/url_form.html", viewsPath),
+func NewServer(dbURI, dbName string) (*Server, error) {
+	db, err := database.NewDatabase(dbURI, dbName)
+	if err != nil {
+		return nil, err
 	}
 
-	NewServer := &Server{
-		port:      port,
-		db:        db,
-		templates: utils.ParseTemplates(files...),
-		mux:       http.NewServeMux(),
-	}
+	mux := http.NewServeMux()
+	server := &Server{router: mux, db: db}
+	routes.AddRoutes(server.router, server.db)
 
-	NewServer.RegisterRoutes()
-
-	return NewServer
+	return server, nil
 }
 
-func (s *Server) CreateHttpServer() *http.Server {
-	addr := fmt.Sprintf(":%d", s.port)
+func RunServer(
+	ctx context.Context,
+	getenv func(string) string,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
 
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      s.mux,
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+	// setup db ????
+	dbURI := getenv("DB_URI")
+	dbName := getenv("DB_NAME")
+	port := getenv("PORT")
+
+	// Start the server and listen for incoming requests / errors
+	server, err := NewServer(dbURI, dbName)
+	if err != nil {
+		return err
 	}
+	defer server.db.CloseConnection()
 
-	return server
-}
+	errs := make(chan error, 1)
 
-func (s *Server) GetDB() database.Service {
-	return s.db
+	// listen and server in a goroutine
+	go func() {
+		fmt.Print("Starting server on port: ", port, "...\n")
+		errs <- http.ListenAndServe(":"+port, server.router)
+	}()
+
+	// block until either an error or a signal is received
+	select {
+	case err := <-errs:
+		fmt.Fprintf(stderr, "error Case: %v\n", err)
+		return err
+	case <-ctx.Done():
+		return nil
+	}
 }
