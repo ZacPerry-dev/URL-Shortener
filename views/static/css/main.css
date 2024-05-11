@@ -1,10 +1,14 @@
+/* Import Bootstrap styles */
+@import url('https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css');
+
+/* Custom styles */
 body {
-  background: linear-gradient(to bottom, #c0c0c0, #d3d3d3); /* Smoother silver gradient background */
+  background: linear-gradient(to bottom, #f3f3f3, #dddddd); /* Smoother silver gradient background */
   color: #333;
 }
 
 header {
-  background-color: #333;
+  background-color: #343a40; /* Dark grey background */
   color: #fff;
   padding: 20px;
 }
@@ -14,7 +18,7 @@ main {
 }
 
 .form-label {
-  color: #333;
+  color: #555; /* Dark grey label color */
 }
 
 .form-control {
@@ -22,11 +26,11 @@ main {
 }
 
 .btn-primary {
-  background-color: #333;
-  border-color: #333;
+  background-color: #007bff; /* Bootstrap blue primary button color */
+  border-color: #007bff;
 }
 
 .btn-primary:hover {
-  background-color: #555;
-  border-color: #555;
+  background-color: #0056b3; /* Darker blue on hover */
+  border-color: #0056b3;
 }
