@@ -2,9 +2,9 @@
 A URL shortening service written in Go. This project was inspired by this [coding challenge](https://codingchallenges.fyi/challenges/challenge-url-shortener). 
 
 ## TODO:
-- [x] Add the UI using Templates, HTMX, & CSS
-   - [x] Will need to add additional handlers for this
-- [] Refactor (make it more readable and modular) 
-- [] Add tests
-- [] Contanerize
+- [x] Add Air
+- [x] Fix CSS to look less horrible 
+- [x] Refactor
+- [] Add tests (god this has been tedious)
+- [x] Docker, Docker-compose
 - [] Finish readme
