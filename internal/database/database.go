@@ -1,11 +1,13 @@
 package database
 
 import (
+	"URL-Shortener/internal/models"
 	"context"
 	"fmt"
 	"log"
 
 	_ "github.com/joho/godotenv/autoload"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -30,6 +32,14 @@ func NewDatabase(dbUri, dbName string) (*Database, error) {
 	}, nil
 }
 
+type IDataBase interface {
+	CloseConnection()
+	GetCollection(collectionName string) *mongo.Collection
+	GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error)
+	PostURL(ctx context.Context, newUrl models.NewUrlInfo) error
+	DeleteURL(ctx context.Context, urlKey string) error
+}
+
 func (d *Database) CloseConnection() {
 	if d.db == nil {
 		return
@@ -43,8 +53,50 @@ func (d *Database) CloseConnection() {
 	fmt.Println("Connection to DB closed successfully!")
 }
 
-func (d *Database) GetCollection(collectionName string) *mongo.Collection {
-	collection := d.db.Database(d.dbName).Collection(collectionName)
+func (d *Database) GetURLCollection() *mongo.Collection {
+	collection := d.db.Database(d.dbName).Collection("url-mappings")
 
 	return collection
+}
+
+// TODO: Implement GET (FIND from utils), POST, DELETE here so it's easy to mock in my tests
+func (d *Database) GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error) {
+	var newUrl models.NewUrlInfo
+
+	collection := d.GetURLCollection()
+	result := collection.FindOne(context.Background(), bson.M{findVal: urlVal})
+
+	if err := result.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return newUrl, false, err
+		}
+
+		return newUrl, false, err
+	}
+
+	if err := result.Decode(&newUrl); err != nil {
+		return newUrl, false, err
+	}
+
+	return newUrl, true, nil
+}
+
+func (d *Database) PostURL(ctx context.Context, newUrl models.NewUrlInfo) error {
+	collection := d.GetURLCollection()
+
+	if _, err := collection.InsertOne(ctx, newUrl); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *Database) DeleteURL(ctx context.Context, urlKey string) error {
+	collection := d.GetURLCollection()
+
+	if _, err := collection.DeleteOne(ctx, bson.M{"key": urlKey}); err != nil {
+		return err
+	}
+
+	return nil
 }
