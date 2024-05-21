@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,9 +9,9 @@ import (
 	"net/url"
 	"os"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"URL-Shortener/internal/database"
 	"URL-Shortener/internal/models"
 )
 
@@ -34,34 +33,18 @@ func ValidateURL(urlString string) (bool, string) {
 	return true, ""
 }
 
-func FindURL(findVal string, urlVal string, urlCollection *mongo.Collection) (models.NewUrlInfo, bool, error) {
-	var newUrl models.NewUrlInfo
-
-	result := urlCollection.FindOne(context.Background(), bson.M{findVal: urlVal})
-
-	if err := result.Err(); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return newUrl, false, err
-		}
-
-		return newUrl, false, err
-	}
-
-	if err := result.Decode(&newUrl); err != nil {
-		return newUrl, false, err
-	}
-
-	return newUrl, true, nil
-}
-
-func Hashing(baseUrl models.BaseUrlInfo, urlCollection *mongo.Collection) (string, error) {
+func Hashing(baseUrl models.BaseUrlInfo, db *database.Database) (string, error) {
 	var key string
 
 	for {
 		key, _ = GenerateHashKey(baseUrl)
-		result, _ := FindHashKey(key, urlCollection)
+		result, err := FindHashKey(key, db)
 		if !result {
 			break
+		}
+
+		if err != nil {
+			return "", err
 		}
 	}
 
@@ -79,17 +62,20 @@ func GenerateHashKey(baseUrl models.BaseUrlInfo) (string, error) {
 	return hashKey, nil
 }
 
-func FindHashKey(hashKey string, urlCollection *mongo.Collection) (bool, error) {
-	result := urlCollection.FindOne(context.Background(), bson.M{"key": hashKey})
+func FindHashKey(hashKey string, db *database.Database) (bool, error) {
+	_, status, err := db.GetURL("key", hashKey)
 
-	if err := result.Err(); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, nil
-		}
+	// Check if the hash key already exists in the DB
+	if status {
+		return true, nil
+	}
+
+	// If another error occurs, return the error
+	if err != nil && err != mongo.ErrNoDocuments {
 		return false, err
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func CreateShortUrl(key string) string {

@@ -9,7 +9,6 @@ import (
 
 	"URL-Shortener/utils"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -57,15 +56,13 @@ func (h *Handler) HandleGetURL() http.Handler {
 		}
 
 		var newUrl models.NewUrlInfo
-		var urlCollection *mongo.Collection = h.db.GetCollection("url-mappings")
-
-		newUrl, status, err := utils.FindURL("key", key, urlCollection)
+		newUrl, status, err := h.db.GetURL("key", key)
 
 		if status {
 			w.Header().Set("Location", newUrl.LongUrl)
 			utils.CreateResponse(w, http.StatusFound, []byte(newUrl.LongUrl))
 
-			// I don't think I techinally need this. If you curl with -L, it will follow the redirect
+			// I don't think I need this. If you curl with -L, it will follow the redirect
 			// But, when using postman it does it anyway. Will keep for now though
 			http.Redirect(w, r, newUrl.LongUrl, http.StatusFound)
 			return
@@ -95,7 +92,6 @@ func (h *Handler) HandleShortenURL() http.Handler {
 
 		var baseUrl models.BaseUrlInfo
 		var newUrl models.NewUrlInfo
-		var urlCollection *mongo.Collection = h.db.GetCollection("url-mappings")
 
 		if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
 			utils.CreateErrorResponse(w, http.MethodPost, "Error Decoding JSON request body", http.StatusBadRequest)
@@ -113,7 +109,7 @@ func (h *Handler) HandleShortenURL() http.Handler {
 		}
 
 		// First, check if the URL already exists in the DB
-		newUrl, status, err := utils.FindURL("longurl", baseUrl.Url, urlCollection)
+		newUrl, status, err := h.db.GetURL("longurl", baseUrl.Url)
 		if status {
 			res, err := utils.JsonMarshal(newUrl)
 			if err != nil {
@@ -134,7 +130,7 @@ func (h *Handler) HandleShortenURL() http.Handler {
 		var key string
 
 		if err == mongo.ErrNoDocuments {
-			key, _ = utils.Hashing(baseUrl, urlCollection)
+			key, _ = utils.Hashing(baseUrl, h.db)
 		}
 
 		// Then, store and return the shortened URL to the user
@@ -144,7 +140,7 @@ func (h *Handler) HandleShortenURL() http.Handler {
 			Key:      key,
 		}
 
-		if _, err := urlCollection.InsertOne(context.Background(), newUrl); err != nil {
+		if err := h.db.PostURL(context.Background(), newUrl); err != nil {
 			utils.CreateErrorResponse(w, http.MethodPost, "Error saving in the DB. Please try again.", http.StatusBadRequest)
 			return
 		}
@@ -174,7 +170,6 @@ func (h *Handler) HandleDeleteURL() http.Handler {
 
 		var baseUrl models.BaseUrlInfo
 		var newUrl models.NewUrlInfo
-		var urlCollection *mongo.Collection = h.db.GetCollection("url-mappings")
 
 		if err := json.NewDecoder(r.Body).Decode(&baseUrl); err != nil {
 			utils.CreateErrorResponse(w, http.MethodDelete, "Error Decoding JSON request body", http.StatusBadRequest)
@@ -191,11 +186,12 @@ func (h *Handler) HandleDeleteURL() http.Handler {
 			return
 		}
 
-		newUrl, status, err := utils.FindURL("shorturl", baseUrl.Url, urlCollection)
+		// First, check if the URL already exists in the DB
+		newUrl, status, err := h.db.GetURL("shorturl", baseUrl.Url)
 
 		// If found, delete
 		if status {
-			_, err := urlCollection.DeleteOne(context.Background(), bson.M{"key": newUrl.Key})
+			err := h.db.DeleteURL(context.Background(), newUrl.Key)
 			if err != nil {
 				utils.CreateErrorResponse(w, http.MethodDelete, "Error with the DB. Please Try Again", http.StatusBadRequest)
 				return
