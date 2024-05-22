@@ -1,3 +1,4 @@
+// server/server.go
 package server
 
 import (
@@ -13,20 +14,14 @@ import (
 
 type Server struct {
 	router *http.ServeMux
-	db     *database.Database
+	db     database.IDataBase
 }
 
-func NewServer(dbURI, dbName string) (*Server, error) {
-	db, err := database.NewDatabase(dbURI, dbName)
-	if err != nil {
-		return nil, err
-	}
-
+func NewServer(db database.IDataBase) *Server {
 	mux := http.NewServeMux()
 	server := &Server{router: mux, db: db}
 	routes.AddRoutes(server.router, server.db)
-
-	return server, nil
+	return server
 }
 
 func RunServer(
@@ -38,30 +33,28 @@ func RunServer(
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-	// setup db ????
 	dbURI := getenv("DB_URI")
 	dbName := getenv("DB_NAME")
 	port := getenv("PORT")
 
-	// Start the server and listen for incoming requests / errors
-	server, err := NewServer(dbURI, dbName)
+	db, err := database.NewDatabase(dbURI, dbName)
 	if err != nil {
 		return err
 	}
-	defer server.db.CloseConnection()
+	defer db.CloseConnection()
+
+	server := NewServer(db)
 
 	errs := make(chan error, 1)
 
-	// listen and server in a goroutine
 	go func() {
 		fmt.Print("Starting server on port: ", port, "...\n")
 		errs <- http.ListenAndServe(":"+port, server.router)
 	}()
 
-	// block until either an error or a signal is received
 	select {
 	case err := <-errs:
-		fmt.Fprintf(stderr, "error Case: %v\n", err)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
 		return err
 	case <-ctx.Done():
 		return nil

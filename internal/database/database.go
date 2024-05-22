@@ -12,12 +12,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type IDataBase interface {
+	CloseConnection()
+	GetURLCollection() *mongo.Collection
+	GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error)
+	PostURL(ctx context.Context, newUrl models.NewUrlInfo) error
+	DeleteURL(ctx context.Context, urlKey string) error
+}
+
 type Database struct {
 	db     *mongo.Client
 	dbName string
 }
 
-func NewDatabase(dbUri, dbName string) (*Database, error) {
+func NewDatabase(dbUri, dbName string) (IDataBase, error) {
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dbUri))
 	if err != nil {
 		fmt.Println("Error connecting to DB!")
@@ -30,14 +38,6 @@ func NewDatabase(dbUri, dbName string) (*Database, error) {
 		db:     client,
 		dbName: dbName,
 	}, nil
-}
-
-type IDataBase interface {
-	CloseConnection()
-	GetCollection(collectionName string) *mongo.Collection
-	GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error)
-	PostURL(ctx context.Context, newUrl models.NewUrlInfo) error
-	DeleteURL(ctx context.Context, urlKey string) error
 }
 
 func (d *Database) CloseConnection() {

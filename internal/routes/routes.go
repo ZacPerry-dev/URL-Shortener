@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func AddRoutes(mux *http.ServeMux, db *database.Database) {
+func AddRoutes(mux *http.ServeMux, db database.IDataBase) {
 	h := handlers.NewHandler(db)
 
 	// Handle requests
