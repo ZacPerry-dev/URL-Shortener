@@ -33,7 +33,7 @@ func ValidateURL(urlString string) (bool, string) {
 	return true, ""
 }
 
-func Hashing(baseUrl models.BaseUrlInfo, db *database.Database) (string, error) {
+func Hashing(baseUrl models.BaseUrlInfo, db database.IDataBase) (string, error) {
 	var key string
 
 	for {
@@ -62,7 +62,7 @@ func GenerateHashKey(baseUrl models.BaseUrlInfo) (string, error) {
 	return hashKey, nil
 }
 
-func FindHashKey(hashKey string, db *database.Database) (bool, error) {
+func FindHashKey(hashKey string, db database.IDataBase) (bool, error) {
 	_, status, err := db.GetURL("key", hashKey)
 
 	// Check if the hash key already exists in the DB

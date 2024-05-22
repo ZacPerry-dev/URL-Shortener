@@ -7,6 +7,7 @@ import (
 
 func TestMockImplementation(t *testing.T) {
 	mockDB := mocks.NewMockDB()
+	// handlers := handlers.NewHandler(mockDB)
 
 	// test that mock db collection is not empty
 	if len(mockDB.Collection) == 0 {
