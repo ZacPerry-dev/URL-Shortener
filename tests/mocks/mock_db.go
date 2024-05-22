@@ -3,6 +3,8 @@ package mocks
 import (
 	"URL-Shortener/internal/models"
 	"context"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type MockDB struct {
@@ -10,7 +12,6 @@ type MockDB struct {
 }
 
 func NewMockDB() *MockDB {
-
 	return &MockDB{
 		Collection: map[string]models.NewUrlInfo{
 			"123456": {
@@ -20,6 +21,14 @@ func NewMockDB() *MockDB {
 			},
 		},
 	}
+}
+
+func (m *MockDB) CloseConnection() {
+	return
+}
+
+func (m *MockDB) GetURLCollection() *mongo.Collection {
+	return nil
 }
 
 func (m *MockDB) GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error) {
