@@ -20,6 +20,7 @@ func NewHandler(db database.IDataBase) *Handler {
 	return &Handler{db: db}
 }
 
+// http://localhost:8080/home
 func (h *Handler) HandleHomePageRequest() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// get the files
@@ -36,6 +37,7 @@ func (h *Handler) HandleHomePageRequest() http.Handler {
 	})
 }
 
+// http://localhost:8080/{key}
 func (h *Handler) HandleGetURL() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Path[1:]
@@ -78,6 +80,7 @@ func (h *Handler) HandleGetURL() http.Handler {
 	})
 }
 
+// http://localhost:8080/shorten
 func (h *Handler) HandleShortenURL() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -156,6 +159,7 @@ func (h *Handler) HandleShortenURL() http.Handler {
 	})
 }
 
+// http://localhost:8080/delete
 func (h *Handler) HandleDeleteURL() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
