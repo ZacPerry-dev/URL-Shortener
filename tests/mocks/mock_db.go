@@ -32,12 +32,24 @@ func (m *MockDB) GetURLCollection() *mongo.Collection {
 }
 
 func (m *MockDB) GetURL(findVal, urlVal string) (models.NewUrlInfo, bool, error) {
-	url, ok := m.Collection[urlVal]
-	if !ok {
-		return models.NewUrlInfo{}, false, nil
+	// find the urlVal associated with the given findVal
+	// So if findval == "longurl", urlVal == "https://www.google.com"
+	// then we would return the url info associated with the long url
+
+	for _, url := range m.Collection {
+		// check if the urlVal equals the value of the findVal within the collection
+		if findVal == "key" && url.Key == urlVal {
+			return url, true, nil
+		}
+		if findVal == "longurl" && url.LongUrl == urlVal {
+			return url, true, nil
+		}
+		if findVal == "shorturl" && url.ShortUrl == urlVal {
+			return url, true, nil
+		}
 	}
 
-	return url, true, nil
+	return models.NewUrlInfo{}, false, nil
 }
 
 func (m *MockDB) PostURL(ctx context.Context, newUrl models.NewUrlInfo) error {
